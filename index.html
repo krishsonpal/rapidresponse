@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traffic Signal Notification</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      justify-content: flex-end;
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1526481280692-202af66d6a77?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1600&q=80') no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+    }
+
+    .container {
+      width: 50%;
+      height: 100%;
+      padding: 50px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background-color: rgba(0, 0, 0, 0.7);
+      box-shadow: -5px 0 15px rgba(0, 0, 0, 0.6);
+    }
+
+    h1 {
+      font-size: 42px;
+      margin-bottom: 20px;
+      color: #ffeb3b;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px #ffeb3b, 0 0 20px #ffeb3b, 0 0 30px #ffeb3b, 0 0 40px #ffeb3b;
+      animation: glow 1.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+      from {
+        text-shadow: 0 0 10px #ffeb3b, 0 0 20px #ffeb3b, 0 0 30px #ffeb3b, 0 0 40px #ffeb3b;
+      }
+      to {
+        text-shadow: 0 0 20px #ffff00, 0 0 30px #ffff00, 0 0 50px #ffff00, 0 0 60px #ffff00;
+      }
+    }
+
+    p {
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+
+    #message {
+      font-size: 24px;
+      font-weight: bold;
+      color: #ff5722;
+    }
+
+    button {
+      padding: 12px 24px;
+      font-size: 20px;
+      color: white;
+      background-color: #1976d2;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #1565c0;
+    }
+
+    .video-container {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 50%;
+      overflow: hidden;
+    }
+
+    .video-container video {
+      width: 90%;
+      height: 100%;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <div class="video-container">
+    <video autoplay loop muted>
+      <source src="931eba37-d0d2-4913-a026-8aa65e49d1e9_wm.mp4" type="video/mp4">
+    </video>
+  </div>
+
+  <div class="container">
+    <h1>Traffic Signal Notification</h1>
+    <p id="notificationStatus">Waiting for user to start notifications...</p>
+    <button id="startBtn" onclick="startNotifications()">Start Notifications</button>
+    <div id="message"></div>
+  </div>
+
+  <script type="text/javascript">
+    var socket;
+
+    function startNotifications() {
+      // Request notification permission
+      requestNotificationPermission();
+
+      // Connect to the WebSocket server on ESP32
+      socket = new WebSocket('ws://192.168.4.1:81');  // Ensure this matches your ESP32 IP and port
+      
+      socket.onopen = function() {
+        console.log("Connected to the WebSocket server");
+      };
+
+      socket.onmessage = function(event) {
+        console.log("Message from server: " + event.data);
+        document.getElementById("message").innerText = event.data;
+
+        // Trigger voice alert
+        speakMessage(event.data);
+
+        // Show a browser notification
+        showNotification(event.data);
+      };
+
+      socket.onclose = function() {
+        console.log("Disconnected from WebSocket server");
+      };
+
+      socket.onerror = function(error) {
+        console.log("WebSocket Error: " + error);
+      };
+
+      // Change the button state to indicate that notifications are active
+      document.getElementById("startBtn").style.display = "none";
+      document.getElementById("notificationStatus").innerText = "Notifications are active";
+    }
+
+    function requestNotificationPermission() {
+      if ("Notification" in window) {
+        if (Notification.permission === "default") {
+          Notification.requestPermission().then(function(permission) {
+            console.log("Notification permission: " + permission);
+          });
+        }
+      }
+    }
+
+    // Function to convert text to speech
+    function speakMessage(message) {
+      if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
+        var utterance = new SpeechSynthesisUtterance(message);
+        speechSynthesis.speak(utterance);
+      } else {
+        console.log("SpeechSynthesis API is not supported by this browser.");
+      }
+    }
+
+    // Function to show a browser notification
+    function showNotification(message) {
+      if (Notification.permission === "granted") {
+        new Notification("Traffic Signal Alert", {
+          body: message,
+          icon: "https://example.com/notification-icon.png"
+        });
+      }
+    }
+
+    // Register Service Worker for background sync (optional)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js').then(function(registration) {
+        console.log('Service Worker registered with scope:', registration.scope);
+      }).catch(function(error) {
+        console.log('Service Worker registration failed:', error);
+      });
+    }
+  </script>
+</body>
+</html>
